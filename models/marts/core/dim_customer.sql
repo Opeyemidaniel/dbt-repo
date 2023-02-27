@@ -1,31 +1,13 @@
-{{
-    config(
-
-        materialized = "table"
-    )
-}}
 
 with customers as (
 
-    select
-        id as customer_id,
-        first_name,
-        last_name
-
-    from dbt-tutorial.jaffle_shop.customers
+    select * from {{    ref('stg_customers')}}
 
 ),
 
 orders as (
 
-    select
-        id as order_id,
-        user_id as customer_id,
-        order_date,
-        status
-
-    from dbt-tutorial.jaffle_shop.orders
-
+    select * from {{    ref('stg_orders')}}
 ),
 
 customer_orders as (
@@ -52,11 +34,19 @@ final as (
         customers.last_name,
         customer_orders.first_order_date,
         customer_orders.most_recent_order_date,
-        coalesce(customer_orders.number_of_orders, 0) as number_of_orders
+        coalesce(customer_orders.number_of_orders, 0) as number_of_orders,
+        sum( ford.amount) as lifetime_value
 
     from customers
 
     left join customer_orders using (customer_id)
+    join {{     ref('fact_orders')}} ford using (customer_id)
+    group by customers.customer_id,
+        customers.first_name,
+        customers.last_name,
+        customer_orders.first_order_date,
+        customer_orders.most_recent_order_date,
+        coalesce(customer_orders.number_of_orders, 0)
 
 )
 
